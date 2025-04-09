@@ -5,11 +5,21 @@
 ```yaml
 profile:
   store-selected: true
+domesticNameservers: &dn
+  - https://dns.alidns.com/dns-query
+  - https://doh.pub/dns-query
+  - https://doh.360.cn/dns-query
+foreignNameservers: &fn
+  - https://1.1.1.1/dns-query
+  - https://1.0.0.1/dns-query
+  - https://208.67.222.222/dns-query
+  - https://208.67.220.220/dns-query
+  - https://194.242.2.2/dns-query
+  - https://194.242.2.3/dns-query
 proxy-providers-common: &ppc
   type: http
   interval: 86400
 proxy-groups-common: &pgc
-  type: select
   interval: 300
   timeout: 3000
   url: https://www.google.com/generate_204
@@ -20,52 +30,75 @@ rule-providers-common: &rpc
   type: http
   format: yaml
   interval: 86400
+dns:
+  enable: true
+  listen: 0.0.0.0:1053
+  ipv6: true
+  cache-algorithm: arc
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  fake-ip-filter:
+    - +.lan
+    - +.local
+    - +.msftconnecttest.com
+    - +.msftncsi.com
+    - localhost.ptlogin2.qq.com
+    - localhost.sec.qq.com
+    - localhost.work.weixin.qq.com
+  default-nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+    - 1.1.1.1
+    - 8.8.8.8
+  nameserver:
+    - *dn
+    - *fn
+  proxy-server-nameserver:
+    - *dn
+    - *fn
+  nameserver-policy:
+    geosite:private,cn,geolocation-cn: *dn
+    geosite:google,youtube,telegram,gfw,geolocation-!cn: *fn
 proxy-providers:
-  sub1:
+  pp1:
     <<: *ppc
-    url:
-    path: ./proxy-provider/sub1.yaml
-  sub2:
+    url: https://example.com
+    path: ./proxy-provider/pp1.yaml
+  pp2:
     <<: *ppc
-    url:
-    path: ./proxy-provider/sub2.yaml
-  sub3:
+    url: https://example.com
+    path: ./proxy-provider/pp2.json
+  pp3:
     <<: *ppc
-    url:
-    path: ./proxy-provider/sub3.yaml
-  sub4:
-    <<: *ppc
-    url:
-    path: ./proxy-provider/sub4.yaml
+    url: https://example.com
+    path: ./proxy-provider/pp3.yaml
 proxy-groups:
-  - name: miHoYo
+  - name: Selector
+    type: select
     <<: *pgc
     proxies:
-      - Honkai Impact 3rd
-      - Genshin Impact
-      - "Honkai: Star Rail"
-      - Zenless Zero Zone
-    icon: https://fastcdn.mihoyo.com/mi18n/plat_cn/m202004281054311/upload/fb9fb8e171957fc3a06322e5f19c772f_6978451248621653135.png
-  - name: Honkai Impact 3rd
-    <<: *pgc
-    use:
       - sub1
-    icon: https://webstatic.mihoyo.com/upload/op-public/2021/10/11/bcfac93531d35c27fd2c44fbc83cfd68_2546351942566697749.png
-  - name: Genshin Impact
-    <<: *pgc
-    use:
       - sub2
-    icon: https://webstatic.mihoyo.com/upload/op-public/2021/10/09/def1f2abcfc2af0bbe2e5900a60a5ee1_178756228418778568.png
-  - name: "Honkai: Star Rail"
-    <<: *pgc
-    use:
       - sub3
-    icon: https://webstatic.mihoyo.com/upload/op-public/2021/10/09/870472d6104dbbe7ea18b27c13763ccb_3190195711986871508.png
-  - name: Zenless Zero Zone
+    icon: https://example.com/example.png
+  - name: sub1
+    type: select
     <<: *pgc
     use:
-      - sub4
-    icon: https://webstatic.mihoyo.com/upload/op-public/2022/07/12/3896559583929f643fbe39ec1d6ca1c9_5788444135694206615.png
+      - pp1
+    icon: https://example.com/example.png
+  - name: sub2
+    type: select
+    <<: *pgc
+    use:
+      - pp2
+    icon: https://example.com/example.png
+  - name: sub3
+    type: select
+    <<: *pgc
+    use:
+      - pp3
+    icon: https://example.com/example.png
 rule-providers:
   reject:
     <<: *rpc
@@ -133,7 +166,8 @@ rule-providers:
     url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/applications.txt"
     path: ./ruleset/applications.yaml
 rules:
-  - RULE-SET,reject,REJECT
+  - DOMAIN-SUFFIX,bgm.tv,DIRECT
+  - DOMAIN-KEYWORD,spotify,DIRECT
   - DOMAIN-SUFFIX,girigirilove.com,DIRECT
   - DOMAIN-SUFFIX,netlify.app,DIRECT
   - DOMAIN,openrouter.ai,DIRECT
@@ -142,12 +176,13 @@ rules:
   - RULE-SET,icloud,DIRECT
   - RULE-SET,apple,DIRECT
   - RULE-SET,direct,DIRECT
-  - RULE-SET,lancidr,DIRECT
-  - RULE-SET,cncidr,DIRECT
-  - GEOIP,LAN,DIRECT
-  - GEOIP,CN,DIRECT
-  - RULE-SET,telegramcidr,miHoYo
-  - RULE-SET,google,miHoYo
-  - RULE-SET,proxy,miHoYo
-  - MATCH,miHoYo
+  - RULE-SET,lancidr,DIRECT,no-resolve
+  - RULE-SET,cncidr,DIRECT,no-resolve
+  - GEOIP,LAN,DIRECT,no-resolve
+  - GEOIP,CN,DIRECT,no-resolve
+  - RULE-SET,telegramcidr,Selector,no-resolve
+  - RULE-SET,google,Selector
+  - RULE-SET,proxy,Selector
+  - RULE-SET,reject,REJECT
+  - MATCH,Selector
 ```
